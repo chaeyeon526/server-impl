@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>게시판 | BridgeHub</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            background-color: #f2f2f2;
+        }
+        h1 {
+            margin-bottom: 1rem;
+        }
+        input, textarea, button {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px;
+            width: 100%;
+            max-width: 600px;
+        }
+        .post {
+            background: #fff;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+        }
+        .post-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .post-meta {
+            font-size: 0.85rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+<h1>게시판</h1>
+
+<button onclick="logout()">로그아웃</button>
+
+<h2>글 작성</h2>
+<input type="text" id="title" placeholder="제목" required />
+<textarea id="content" rows="5" placeholder="내용" required></textarea>
+<button onclick="writePost()">작성하기</button>
+
+<h2>게시글 목록</h2>
+<div id="boardList">불러오는 중...</div>
+
+<script>
+    const API_URL = "http://localhost:8080/api/board";
+    const jwt = localStorage.getItem("jwt");
+
+    if (!jwt) {
+        alert("로그인이 필요합니다. 로그인 후 다시 접근해주세요.");
+        location.href = "/index.html";
+    }
+
+    async function fetchBoardList() {
+        try {
+            const res = await fetch(`${API_URL}/list`, {
+                headers: {
+                    "Authorization": `Bearer ${jwt}`
+                }
+            });
+
+            if (!res.ok) throw new Error("목록 요청 실패");
+
+            const posts = await res.json();
+            const listDiv = document.getElementById("boardList");
+            listDiv.innerHTML = "";
+
+            posts.forEach(post => {
+                const postDiv = document.createElement("div");
+                postDiv.className = "post";
+                postDiv.innerHTML = `
+            <div class="post-title">${post.title}</div>
+            <div class="post-meta">${post.writerName || "익명"} | ${post.createdAt}</div>
+            <p>${post.content}</p>
+          `;
+                listDiv.appendChild(postDiv);
+            });
+
+        } catch (err) {
+            document.getElementById("boardList").innerText = "게시글을 불러오는 중 오류가 발생했습니다.";
+            console.error(err);
+        }
+    }
+
+    async function writePost() {
+        const title = document.getElementById("title").value.trim();
+        const content = document.getElementById("content").value.trim();
+
+        if (!title || !content) {
+            alert("제목과 내용을 모두 입력해주세요.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_URL}/write`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${jwt}`
+                },
+                body: JSON.stringify({ title, content })
+            });
+
+            if (!res.ok) throw new Error("작성 실패");
+
+            alert("글이 등록되었습니다.");
+            document.getElementById("title").value = "";
+            document.getElementById("content").value = "";
+            fetchBoardList();
+
+        } catch (err) {
+            alert("작성 실패: " + err.message);
+            console.error(err);
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem("jwt");
+        location.href = "/index.html";
+    }
+
+    fetchBoardList();
+</script>
+
+</body>
+</html>
